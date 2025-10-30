@@ -1,42 +1,49 @@
-const express = require('express')
-const router = express.Router()
-const connectToDatabase = require('../models/db')
-require('dotenv').config()
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const pinoLogger = require("./logger");
+const path = require("path");
 
-// Search for gifts
-router.get('/', async (req, res, next) => {
-  try {
-    // Task 1: Connect to MongoDB using connectToDatabase database
-    const db = await connectToDatabase()
+const connectToDatabase = require("./models/db");
 
-    const collection = db.collection(process.env.MONGO_COLLECTION)
+const app = express();
+app.use("*", cors());
+const port = 3060;
 
-    // Initialize the query object
-    const query = {}
+// Connect to MongoDB; we just do this one time
+connectToDatabase()
+  .then(() => {
+    pinoLogger.info("Connected to DB");
+  })
+  .catch((e) => console.error("Failed to connect to DB", e));
 
-    // Task 2: Add the name filter to the query if the name parameter exists and is not empty
-    if (req.query.name && req.query.name.trim() !== '') {
-      query.name = { $regex: req.query.name, $options: 'i' } // Using regex for partial match, case-insensitive
-    }
+app.use(express.json());
 
-    // Task 3: Add other filters to the query
-    if (req.query.category) {
-      query.category = req.query.category
-    }
-    if (req.query.condition) {
-      query.condition = req.query.condition
-    }
-    if (req.query.age_years) {
-      query.age_years = { $lte: parseInt(req.query.age_years) }
-    }
+// Route files
+const secondChanceRoutes = require("./routes/secondChanceItemsRoutes");
+const authRoutes = require("./routes/authRoutes");
+const searchRoutes = require("./routes/searchRoutes");
+const pinoHttp = require("pino-http");
+const logger = require("./logger");
 
-    // Task 4: Fetch filtered gifts using the find(query) method
-    const gifts = await collection.find(query).toArray()
+app.use(pinoHttp({ logger }));
+app.use(express.static(path.join(__dirname, "public")));
 
-    res.json(gifts)
-  } catch (e) {
-    next(e)
-  }
-})
+// Use Routes
+app.use("/api/secondchance/items", secondChanceRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/secondchance/search", searchRoutes);
 
-module.exports = router
+// Global Error Handler
+app.use((err, req, res) => {
+  console.error(err);
+  res.status(500).send("Internal Server Error");
+});
+
+app.get("/", (req, res) => {
+  res.send("Inside the server");
+});
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
