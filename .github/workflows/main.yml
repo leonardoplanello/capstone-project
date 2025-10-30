@@ -1,0 +1,29 @@
+name: 'CI/CD'
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  lint_js:
+    name: Lint JavaScript Files
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '16' # Use a compatible Node.js version
+
+    - name: Install Dependencies
+      run: |
+        npm install
+
+    - name: Run ESLint
+      run: |
+        npx eslint secondChance-backend/**/*.js secondChance-frontend/**/*.js
